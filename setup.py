@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from numpy import get_include as get_numpy_include_dir
+from pybind11 import get_cmake_dir as get_pybind11_cmake_dir
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
@@ -49,6 +51,8 @@ class CMakeBuild(build_ext):
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DPython_EXECUTABLE={sys.executable}",
+            f"-DPython_NumPy_INCLUDE_DIR={get_numpy_include_dir()}",
+            f"-Dpybind11_DIR={get_pybind11_cmake_dir()}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
         build_args = []
