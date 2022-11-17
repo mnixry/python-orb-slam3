@@ -12,14 +12,15 @@ jobs:
       matrix:
         os: [ubuntu, macos, windows]
 
+    env:
+      MATRIX_OS: ${{ matrix.os }}
+
     runs-on: ${{ matrix.os }}-latest
 
     steps:
       - name: Get latest release
         id: latest-release
         shell: bash
-        env:
-          MATRIX_OS: ${{ matrix.os }}
         run: |
           curl -s https://api.github.com/repos/opencv/opencv/releases/latest \
             -H "Accept: application/vnd.github.v3+json" \
@@ -32,22 +33,31 @@ jobs:
           repository: opencv/opencv
           ref: ${{ steps.latest-release.outputs.tag }}
 
+      - uses: Chocobo1/setup-ccache-action@v1
+        with:
+          windows_compile_environment: msvc
+
       - name: CMake build
         shell: bash
         run: |
           mkdir build
           cd build
 
+          if [ "$MATRIX_OS" = "windows" ]; then
+            export CMAKE_GENERATOR=Ninja
+          fi
+
           cmake .. \
-            -DCMAKE_INSTALL_PREFIX=../opencv \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_LIST=core,imgproc,highgui,features2d \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DWITH_ADE=OFF \
-            -DWITH_PROTOBUF=OFF \
-            -DWITH_QUIRC=OFF \
-            -DWITH_ITT=OFF \
-            -DWITH_OPENEXR=OFF 
+            -D CMAKE_INSTALL_PREFIX=../opencv \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D BUILD_LIST=core,imgproc,highgui,features2d \
+            -D BUILD_SHARED_LIBS=OFF \
+            -D ENABLE_CCACHE=ON \
+            -D WITH_ADE=OFF \
+            -D WITH_PROTOBUF=OFF \
+            -D WITH_QUIRC=OFF \
+            -D WITH_ITT=OFF \
+            -D WITH_OPENEXR=OFF 
 
           cmake --build . --target install --parallel 4
 
@@ -64,6 +74,9 @@ jobs:
       matrix:
         os: [ubuntu, macos, windows]
         python: ["3.8", "3.9", "3.10", "3.11"]
+
+    env:
+      MATRIX_OS: ${{ matrix.os }}
 
     runs-on: ${{ matrix.os }}-latest
 
@@ -86,8 +99,17 @@ jobs:
       - name: Build wheel
         shell: bash
         run: |
-          export OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4
           export OpenCV_STATIC=ON
+
+          if [ "$MATRIX_OS" = "windows" ]; then
+            export OpenCV_DIR=$(pwd)/opencv/x64/mingw/staticlib
+          else
+            export OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4
+          fi
+
+          if [ "$MATRIX_OS" = "windows" ]; then
+            export CMAKE_GENERATOR=Ninja
+          fi
 
           python -m build --wheel
 
