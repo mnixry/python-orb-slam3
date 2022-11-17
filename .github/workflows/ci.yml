@@ -14,9 +14,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}-latest
 
-    outputs:
-      cache-key: ${{ steps.latest-release.outputs.key }}
-
     steps:
       - name: Get latest release
         id: latest-release
@@ -29,7 +26,6 @@ jobs:
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             | jq -r '.tag_name' | tee latest-release.txt
           echo "tag=$(cat latest-release.txt)" >> $GITHUB_OUTPUT
-          echo "key=${MATRIX_OS}-$(cat latest-release.txt)" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@v3
         with:
@@ -39,8 +35,10 @@ jobs:
       - id: cache-build
         uses: actions/cache@v3
         with:
-          path: ./opencv
-          key: ${{ steps.latest-release.outputs.key }}
+          path: |
+            ./opencv
+            ./build
+          key: opencv-${{ matrix.os }}-${{ steps.latest-release.outputs.tag }}
 
       - name: CMake build
         if: steps.cache-build.outputs.cache-hit != 'true'
@@ -53,8 +51,18 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=../opencv \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_LIST=core,imgproc,highgui,features2d \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DWITH_ADE=OFF \
+            -DWITH_PROTOBUF=OFF \
+            -DWITH_QUIRC=OFF \
+            -DWITH_ITT=OFF
+
           cmake --build . --target install
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: opencv-${{ matrix.os }}
+          path: ./opencv
 
   build:
     name: Build Wheel
@@ -70,10 +78,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
+      - uses: actions/download-artifact@v3
         with:
+          name: opencv-${{ matrix.os }}
           path: ./opencv
-          key: ${{ needs.build-opencv.outputs.cache-key }}
 
       - uses: actions/setup-python@v4
         with:
@@ -87,6 +95,8 @@ jobs:
         shell: bash
         run: |
           export OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4
+          export OpenCV_STATIC=ON
+
           python -m build --wheel
 
       - uses: actions/upload-artifact@v3
