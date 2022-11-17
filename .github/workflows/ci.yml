@@ -32,16 +32,7 @@ jobs:
           repository: opencv/opencv
           ref: ${{ steps.latest-release.outputs.tag }}
 
-      - id: cache-build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ./opencv
-            ./build
-          key: opencv-${{ matrix.os }}-${{ steps.latest-release.outputs.tag }}
-
       - name: CMake build
-        if: steps.cache-build.outputs.cache-hit != 'true'
         shell: bash
         run: |
           mkdir build
@@ -55,9 +46,10 @@ jobs:
             -DWITH_ADE=OFF \
             -DWITH_PROTOBUF=OFF \
             -DWITH_QUIRC=OFF \
-            -DWITH_ITT=OFF
+            -DWITH_ITT=OFF \
+            -DWITH_OPENEXR=OFF 
 
-          cmake --build . --target install
+          cmake --build . --target install --parallel 4
 
       - uses: actions/upload-artifact@v3
         with:
