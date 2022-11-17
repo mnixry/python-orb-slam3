@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-opencv:
+    name: Build OpenCV
+
+    strategy:
+      matrix:
+        os: [ubuntu, macos, windows]
+
+    runs-on: ${{ matrix.os }}-latest
+
+    steps:
+      - name: Get latest release
+        id: latest-release
+        shell: bash
+        run: |
+          curl -s https://api.github.com/repos/opencv/opencv/releases/latest \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            | jq -r '.tag_name' | tee latest-release.txt
+          cat latest-release.txt
+          echo "tag=$(cat latest-release.txt)" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v3
+        with:
+          repository: opencv/opencv
+          ref: ${{ steps.latest-release.outputs.tag }}
+
+      - id: cache-build
+        uses: actions/cache@v3
+        with:
+          path: ./build
+          key: ${{matrix.os}}-build-${{ steps.latest-release.outputs.tag }}
+
+      - name: CMake configure and build
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+
+          cmake .. \
+            -DCMAKE_INSTALL_PREFIX=../opencv \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_LIST=core,imgproc,highgui,features2d \
+            -DBUILD_SHARED_LIBS=OFF
+          cmake --build . --parallel 4
+
+      - name: CMake install
+        working-directory: ./build
+        run: |
+          cmake --build . --target install
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: opencv-${{matrix.os}}
+          path: ./opencv
