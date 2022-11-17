@@ -12,6 +12,10 @@ jobs:
       matrix:
         os: [ubuntu, macos, windows]
 
+    defaults:
+      run:
+        shell: bash
+
     env:
       MATRIX_OS: ${{ matrix.os }}
 
@@ -20,7 +24,6 @@ jobs:
     steps:
       - name: Get latest release
         id: latest-release
-        shell: bash
         run: |
           curl -s https://api.github.com/repos/opencv/opencv/releases/latest \
             -H "Accept: application/vnd.github.v3+json" \
@@ -37,15 +40,21 @@ jobs:
         with:
           windows_compile_environment: msvc
 
+      - uses: ilammy/msvc-dev-cmd@v1
+        id: msvc-env
+        if: matrix.os == 'windows'
+
+      - name: Setup MSVC environment
+        if: steps.msvc-env.conclusion == 'success'
+        run: |
+          echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
+          echo "CC=cl" >> $GITHUB_ENV
+          echo "CXX=cl" >> $GITHUB_ENV
+
       - name: CMake build
-        shell: bash
         run: |
           mkdir build
           cd build
-
-          if [ "$MATRIX_OS" = "windows" ]; then
-            export CMAKE_GENERATOR=Ninja
-          fi
 
           cmake .. \
             -D CMAKE_INSTALL_PREFIX=../opencv \
@@ -75,6 +84,10 @@ jobs:
         os: [ubuntu, macos, windows]
         python: ["3.8", "3.9", "3.10", "3.11"]
 
+    defaults:
+      run:
+        shell: bash
+
     env:
       MATRIX_OS: ${{ matrix.os }}
 
@@ -96,24 +109,63 @@ jobs:
         run: |
           pip install build
 
-      - name: Build wheel
-        shell: bash
+      - uses: ilammy/msvc-dev-cmd@v1
+        id: msvc-env
+        if: matrix.os == 'windows'
+
+      - name: Setup MSVC environment
+        if: steps.msvc-env.conclusion == 'success'
         run: |
-          export OpenCV_STATIC=ON
+          echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
+          echo "CC=cl" >> $GITHUB_ENV
+          echo "CXX=cl" >> $GITHUB_ENV
 
-          if [ "$MATRIX_OS" = "windows" ]; then
-            export OpenCV_DIR=$(pwd)/opencv/x64/mingw/staticlib
-          else
-            export OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4
-          fi
+          CV_DIR=$(find ./opencv/x64 | grep -i '\.cmake$' | head -n 1)
+          echo "OpenCV_DIR=$(realpath $(dirname $CV_DIR))" >> $GITHUB_ENV
+          echo "OpenCV_STATIC=ON" >> $GITHUB_ENV
 
-          if [ "$MATRIX_OS" = "windows" ]; then
-            export CMAKE_GENERATOR=Ninja
-          fi
+      - name: Setup Unix environment
+        if: steps.msvc-env.conclusion == 'skipped'
+        run: |
+          echo "OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4" >> $GITHUB_ENV
+          echo "OpenCV_STATIC=ON" >> $GITHUB_ENV
 
+      - name: Build wheel
+        env:
+          VERBOSE: 1
+        run: |
           python -m build --wheel
 
       - uses: actions/upload-artifact@v3
         with:
           name: wheel-${{matrix.os}}-${{matrix.python}}
+          path: ./dist/*.whl
+
+      - name: Test wheel
+        env:
+          SYSTEM_VERSION_COMPAT: 0
+        run: |
+          pip install dist/*.whl
+          python -vc "from orb_slam3 import ORBExtractor"
+
+  cleanup:
+    name: Cleanup artifacts
+    runs-on: ubuntu-latest
+    needs: [build-opencv, build]
+
+    steps:
+      - uses: geekyeggo/delete-artifact@v2
+        with:
+          name: opencv-*
+
+      - uses: actions/download-artifact@v3
+
+      - name: Merge wheels
+        run: |
+          mkdir dist
+          cp -v wheel-*/*.whl dist/
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheel-all
           path: ./dist/*.whl
