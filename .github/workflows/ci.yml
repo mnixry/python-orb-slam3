@@ -14,17 +14,22 @@ jobs:
 
     runs-on: ${{ matrix.os }}-latest
 
+    outputs:
+      cache-key: ${{ steps.latest-release.outputs.key }}
+
     steps:
       - name: Get latest release
         id: latest-release
         shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
         run: |
           curl -s https://api.github.com/repos/opencv/opencv/releases/latest \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             | jq -r '.tag_name' | tee latest-release.txt
-          cat latest-release.txt
           echo "tag=$(cat latest-release.txt)" >> $GITHUB_OUTPUT
+          echo "key=${MATRIX_OS}-$(cat latest-release.txt)" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@v3
         with:
@@ -34,10 +39,10 @@ jobs:
       - id: cache-build
         uses: actions/cache@v3
         with:
-          path: ./build
-          key: ${{matrix.os}}-build-${{ steps.latest-release.outputs.tag }}
+          path: ./opencv
+          key: ${{ steps.latest-release.outputs.key }}
 
-      - name: CMake configure and build
+      - name: CMake build
         if: steps.cache-build.outputs.cache-hit != 'true'
         shell: bash
         run: |
@@ -49,14 +54,42 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_LIST=core,imgproc,highgui,features2d \
             -DBUILD_SHARED_LIBS=OFF
-          cmake --build . --parallel 4
-
-      - name: CMake install
-        working-directory: ./build
-        run: |
           cmake --build . --target install
+
+  build:
+    name: Build Wheel
+    needs: [build-opencv]
+
+    strategy:
+      matrix:
+        os: [ubuntu, macos, windows]
+        python: ["3.8", "3.9", "3.10", "3.11"]
+
+    runs-on: ${{ matrix.os }}-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        with:
+          path: ./opencv
+          key: ${{ needs.build-opencv.outputs.cache-key }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          pip install build
+
+      - name: Build wheel
+        shell: bash
+        run: |
+          export OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4
+          python -m build --wheel
 
       - uses: actions/upload-artifact@v3
         with:
-          name: opencv-${{matrix.os}}
-          path: ./opencv
+          name: wheel-${{matrix.os}}-${{matrix.python}}
+          path: ./dist/*.whl
