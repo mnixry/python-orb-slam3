@@ -3,7 +3,7 @@ from tkinter.filedialog import askopenfilename
 import cv2
 from matplotlib import pyplot as plt
 
-from orb_slam3 import ORBExtractor
+from python_orb_slam3 import ORBExtractor
 
 source_file = askopenfilename()
 target_file = askopenfilename()

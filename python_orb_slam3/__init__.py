@@ -1,7 +1,7 @@
-import typing
+from typing import List, Tuple, Optional
 
-import numpy
 import orb_slam3
+import cv2
 
 __all__ = ["ORBExtractor"]
 
@@ -29,8 +29,8 @@ class ORBExtractor(orb_slam3.ORBExtractor):
 
     def detectAndCompute(
         self,
-        image: numpy.ndarray,
-        mask: typing.Optional[numpy.ndarray] = None,
-        lappingArea: typing.Tuple[int, int] = (0, 0),
-    ) -> typing.Tuple[numpy.ndarray, numpy.ndarray]:
-        return super().detectAndCompute(image, mask, lappingArea)  # type: ignore
+        image: cv2.Mat,
+        mask: Optional[cv2.Mat] = None,
+        lappingArea: Tuple[int, int] = (0, 0),
+    ) -> Tuple[List[cv2.KeyPoint], Optional[cv2.Mat]]:
+        return super().detectAndCompute(image, mask, lappingArea)
