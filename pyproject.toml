@@ -27,6 +27,11 @@ pybind11 = "^2.10.0"
 cmake = "^3.18.0"
 ninja = "^1.10.0"
 
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.0"
+pytest-sugar = "^0.9.6"
+pytest-benchmark = "^4.0.0"
+
 [tool.poetry.build]
 script = "build.py"
 
