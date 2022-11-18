@@ -105,10 +105,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Install dependencies
-        run: |
-          pip install build
-
       - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
         if: matrix.os == 'windows'
@@ -116,10 +112,6 @@ jobs:
       - name: Setup MSVC environment
         if: steps.msvc-env.conclusion == 'success'
         run: |
-          echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
-          echo "CC=cl" >> $GITHUB_ENV
-          echo "CXX=cl" >> $GITHUB_ENV
-
           CV_DIR=$(find ./opencv/x64 | grep -i '\.cmake$' | head -n 1)
           echo "OpenCV_DIR=$(realpath $(dirname $CV_DIR))" >> $GITHUB_ENV
           echo "OpenCV_STATIC=ON" >> $GITHUB_ENV
@@ -134,7 +126,8 @@ jobs:
         env:
           VERBOSE: 1
         run: |
-          python -m build --wheel
+          pip install poetry
+          poetry build --format wheel
 
       - uses: actions/upload-artifact@v3
         with:
