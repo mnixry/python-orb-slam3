@@ -1,4 +1,4 @@
-import glob
+import contextlib
 import os
 import re
 import subprocess
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from numpy import get_include as get_numpy_include_dir
 from pybind11 import get_cmake_dir as get_pybind11_cmake_dir
-from setuptools import Extension, setup
+from setuptools import Extension
 from setuptools.command.build_ext import build_ext
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -61,59 +61,44 @@ class CMakeBuild(build_ext):
         if "CMAKE_ARGS" in os.environ:
             cmake_args += [item for item in os.environ["CMAKE_ARGS"].split(" ") if item]
 
-        if self.compiler.compiler_type != "msvc":
-            # Using Ninja-build since it a) is available as a wheel and b)
-            # multithreads automatically. MSVC would require all variables be
-            # exported for Ninja to pick it up, which is a little tricky to do.
-            # Users can override the generator with CMAKE_GENERATOR in CMake
-            # 3.15+.
-            if not cmake_generator or cmake_generator == "Ninja":
-                try:
-                    import ninja  # noqa: F401
-
-                    ninja_executable_path = Path(ninja.BIN_DIR) / "ninja"
-                    cmake_args += [
-                        "-GNinja",
-                        f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja_executable_path}",
-                    ]
-                except ImportError:
-                    pass
-
-        else:
-
+        if self.compiler.compiler_type == "msvc":
             # Single config generators are handled "normally"
             single_config = any(x in cmake_generator for x in {"NMake", "Ninja"})
 
-            # CMake allows an arch-in-generator style for backward compatibility
-            contains_arch = any(x in cmake_generator for x in {"ARM", "Win64"})
-
-            # Specify the arch if using MSVC generator, but only if it doesn't
-            # contain a backward-compatibility arch spec already in the
-            # generator name.
-            if not single_config and not contains_arch:
-                cmake_args += ["-A", PLAT_TO_CMAKE[self.plat_name]]
-
-            # Multi-config generators have a different way to specify configs
             if not single_config:
+                # CMake allows an arch-in-generator style for backward compatibility
+                contains_arch = any(x in cmake_generator for x in {"ARM", "Win64"})
+
+                if not contains_arch:
+                    cmake_args += ["-A", PLAT_TO_CMAKE[self.plat_name]]
+
                 cmake_args += [
                     f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"
                 ]
                 build_args += ["--config", cfg]
 
+        elif not cmake_generator or cmake_generator == "Ninja":
+            with contextlib.suppress(ImportError):
+                import ninja  # type:ignore noqa: F401
+
+                ninja_executable_path = Path(ninja.BIN_DIR) / "ninja"
+                cmake_args += [
+                    "-GNinja",
+                    f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja_executable_path}",
+                ]
         if sys.platform.startswith("darwin"):
-            # Cross-compile support for macOS - respect ARCHFLAGS if set
-            archs = re.findall(r"-arch (\S+)", os.environ.get("ARCHFLAGS", ""))
-            if archs:
-                cmake_args += ["-DCMAKE_OSX_ARCHITECTURES={}".format(";".join(archs))]
+            if archs := re.findall(r"-arch (\S+)", os.environ.get("ARCHFLAGS", "")):
+                cmake_args += [f'-DCMAKE_OSX_ARCHITECTURES={";".join(archs)}']
 
         # Set CMAKE_BUILD_PARALLEL_LEVEL to control the parallel build level
         # across all generators.
-        if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
-            # self.parallel is a Python 3 only way to set parallel jobs by hand
-            # using -j in the build_ext call, not supported by pip or PyPA-build.
-            if hasattr(self, "parallel") and self.parallel:
-                # CMake 3.12+ only.
-                build_args += [f"-j{self.parallel}"]
+        if (
+            "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ
+            and hasattr(self, "parallel")
+            and self.parallel
+        ):
+            # CMake 3.12+ only.
+            build_args += [f"-j{self.parallel}"]
 
         build_temp = Path(self.build_temp) / ext.name
         if not build_temp.exists():
@@ -127,23 +112,9 @@ class CMakeBuild(build_ext):
         )
 
 
-# The information here can also be placed in setup.cfg - better separation of
-# logic and declaration, and simpler if you include description/version in a file.
-setup(
-    name="orb-slam3",
-    version="0.0.1",
-    author="Mix",
-    author_email="32300164+mnixry@users.noreply.github.com",
-    description="A Python wrapper for ORB-SLAM3",
-    long_description=Path("README.md").read_text(),
-    ext_modules=[CMakeExtension("orb_slam3")],
-    cmdclass={"build_ext": CMakeBuild},
-    zip_safe=False,
-    install_requires=["numpy", "opencv-python"],
-    extras_require={"test": ["pytest>=6.0"]},
-    python_requires=">=3.8",
-    data_files=[
-        ("src", glob.glob("src/**/*", recursive=True)),
-        ("CMakeLists.txt", ["CMakeLists.txt"]),
-    ],
-)
+def build(setup_kwargs: dict) -> None:
+    setup_kwargs.update(
+        cmdclass={"build_ext": CMakeBuild},
+        ext_modules=[CMakeExtension("orb_slam3")],
+        zip_safe=False,
+    )
