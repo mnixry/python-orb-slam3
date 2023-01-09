@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  create: { tags: ["v*"] }
+  workflow_dispatch:
 
 jobs:
   build-opencv:
