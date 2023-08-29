@@ -33,14 +33,15 @@ pytest-sugar = "^0.9.6"
 pytest-benchmark = "^4.0.0"
 
 [tool.poetry.build]
+generate-setup-file = true
 script = "build.py"
 
 [build-system]
 requires = [
-    "poetry-core",
+    "poetry-core>=1.0.0",
     "setuptools",
-    "wheel",
     "cmake>=3.18",
+    "wheel",
     "pybind11",
     "numpy",
     "ninja",
