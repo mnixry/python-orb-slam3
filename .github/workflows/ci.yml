@@ -19,6 +19,7 @@ jobs:
 
     env:
       MATRIX_OS: ${{ matrix.os }}
+      SCCACHE_GHA_ENABLED: true
 
     runs-on: ${{ matrix.os }}-latest
 
@@ -37,9 +38,7 @@ jobs:
           repository: opencv/opencv
           ref: ${{ steps.latest-release.outputs.tag }}
 
-      - uses: Chocobo1/setup-ccache-action@v1
-        with:
-          windows_compile_environment: msvc
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
@@ -60,6 +59,8 @@ jobs:
           cmake .. \
             -D CMAKE_INSTALL_PREFIX=../opencv \
             -D CMAKE_BUILD_TYPE=Release \
+            -D CMAKE_C_COMPILER_LAUNCHER=sccache \
+            -D CMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -D BUILD_LIST=core,imgproc,features2d \
             -D BUILD_SHARED_LIBS=OFF \
             -D ENABLE_CCACHE=ON \
@@ -67,7 +68,13 @@ jobs:
             -D WITH_PROTOBUF=OFF \
             -D WITH_QUIRC=OFF \
             -D WITH_ITT=OFF \
-            -D WITH_OPENEXR=OFF 
+            -D WITH_OPENEXR=OFF \
+            -D WITH_WEBP=OFF \
+            -D WITH_JASPER=OFF \
+            -D WITH_OPENJPEG=OFF \
+            -D WITH_JPEG=OFF \
+            -D WITH_PNG=OFF \
+            -D WITH_TIFF=OFF
 
           cmake --build . --target install --parallel 4
 
