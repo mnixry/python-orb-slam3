@@ -3,7 +3,6 @@ name: CI
 on:
   push:
   pull_request:
-  create: { tags: ["v*"] }
   workflow_dispatch:
 
 jobs:
@@ -61,7 +60,7 @@ jobs:
           cmake .. \
             -D CMAKE_INSTALL_PREFIX=../opencv \
             -D CMAKE_BUILD_TYPE=Release \
-            -D BUILD_LIST=core,imgproc,highgui,features2d \
+            -D BUILD_LIST=core,imgproc,features2d \
             -D BUILD_SHARED_LIBS=OFF \
             -D ENABLE_CCACHE=ON \
             -D WITH_ADE=OFF \
