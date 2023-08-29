@@ -212,3 +212,28 @@ jobs:
         with:
           name: wheel-all
           path: ./dist/*.whl
+
+  release:
+    name: Release
+    needs: [cleanup]
+    if: startsWith(github.ref, 'refs/tags/v') && github.head_ref == ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: wheel-all
+          path: ./dist
+
+      - name: Install Poetry
+        run: |
+          pipx install poetry
+
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          poetry build --format sdist
+          poetry publish --skip-existing
