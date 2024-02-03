@@ -170,6 +170,11 @@ jobs:
           - windows-latest
           - macos-14
         python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        exclude:
+          - os: macos-14
+            python: "3.8"
+          - os: macos-14
+            python: "3.9"
 
     defaults:
       run:
@@ -188,7 +193,7 @@ jobs:
 
       - name: Install Poetry
         run: |
-          pipx install poetry
+          pip install poetry
 
       - uses: actions/setup-python@v4
         with:
@@ -242,7 +247,7 @@ jobs:
 
       - name: Install Poetry
         run: |
-          pipx install poetry
+          pip install poetry
 
       - name: Publish to PyPI
         env:
