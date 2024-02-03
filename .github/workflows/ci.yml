@@ -191,14 +191,13 @@ jobs:
           name: wheel-${{matrix.os}}-${{matrix.python}}
           path: ./dist
 
-      - name: Install Poetry
-        run: |
-          pip install poetry
-
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
-          cache: poetry
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
 
       - name: Install dependencies
         run: |
@@ -247,7 +246,7 @@ jobs:
 
       - name: Install Poetry
         run: |
-          pip install poetry
+          pipx install poetry
 
       - name: Publish to PyPI
         env:
