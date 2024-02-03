@@ -11,17 +11,20 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu, macos, windows]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+          - macos-14
 
     defaults:
       run:
         shell: bash
 
     env:
-      MATRIX_OS: ${{ matrix.os }}
       SCCACHE_GHA_ENABLED: true
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Get latest release
@@ -89,17 +92,18 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu, macos, windows]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+          - macos-14
         python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     defaults:
       run:
         shell: bash
 
-    env:
-      MATRIX_OS: ${{ matrix.os }}
-
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -155,14 +159,18 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu, macos, windows]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+          - macos-14
         python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     defaults:
       run:
         shell: bash
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
