@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-orb-slam3"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Python wrapper of ORB-SLAM3 algorithm"
 authors = ["Mix <32300164+mnixry@users.noreply.github.com>"]
 license = "GPL-3.0"
