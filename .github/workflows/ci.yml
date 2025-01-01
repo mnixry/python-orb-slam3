@@ -157,6 +157,7 @@ jobs:
         env:
           SYSTEM_VERSION_COMPAT: 0
         run: |
+          rm -vf /usr/bin/link
           pip install dist/*.whl
           python -vc "from orb_slam3 import ORBExtractor"
 
@@ -197,12 +198,17 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - uses: ilammy/msvc-dev-cmd@v1
+        id: msvc-env
+        if: startsWith(matrix.os, 'windows')
+
       - name: Install Poetry
         run: |
           pip install poetry
 
       - name: Install dependencies
         run: |
+          rm -vf /usr/bin/link
           poetry install --no-root --only=test
           poetry run pip install dist/*.whl
 
