@@ -38,14 +38,14 @@ jobs:
             | jq -r '.tag_name' | tee latest-release.txt
           echo "tag=$(cat latest-release.txt)" >> $GITHUB_OUTPUT
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@main
         with:
           repository: opencv/opencv
           ref: ${{ steps.latest-release.outputs.tag }}
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: mozilla-actions/sccache-action@main
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@main
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
@@ -83,7 +83,7 @@ jobs:
 
           cmake --build . --target install --parallel 4
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@main
         with:
           name: opencv-${{ matrix.os }}
           path: ./opencv
@@ -113,18 +113,18 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@main
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@main
         with:
           name: opencv-${{ matrix.os }}
           path: ./opencv
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@main
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@main
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
@@ -148,7 +148,7 @@ jobs:
           pip install poetry
           poetry build --format wheel
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@main
         with:
           name: wheel-${{matrix.os}}-${{matrix.python}}
           path: ./dist/*.whl
@@ -185,15 +185,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@main
 
       - name: Download wheel
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@main
         with:
           name: wheel-${{matrix.os}}-${{matrix.python}}
           path: ./dist
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@main
         with:
           python-version: ${{ matrix.python }}
 
@@ -216,18 +216,18 @@ jobs:
     needs: [build, test]
 
     steps:
-      - uses: geekyeggo/delete-artifact@v2
+      - uses: geekyeggo/delete-artifact@main
         with:
           name: opencv-*
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@main
 
       - name: Merge wheels
         run: |
           mkdir dist
           cp -v wheel-*/*.whl dist/
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@main
         with:
           name: wheel-all
           path: ./dist/*.whl
@@ -239,9 +239,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@main
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@main
         with:
           name: wheel-all
           path: ./dist
