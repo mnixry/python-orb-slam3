@@ -45,7 +45,7 @@ jobs:
 
       - uses: mozilla-actions/sccache-action@main
 
-      - uses: ilammy/msvc-dev-cmd@main
+      - uses: ilammy/msvc-dev-cmd@master
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
@@ -99,7 +99,7 @@ jobs:
           - windows-latest
           - macos-13
           - macos-14
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
           - os: macos-14
             python: "3.8"
@@ -124,7 +124,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: ilammy/msvc-dev-cmd@main
+      - uses: ilammy/msvc-dev-cmd@master
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
@@ -171,7 +171,7 @@ jobs:
           - windows-latest
           - macos-13
           - macos-14
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
           - os: macos-14
             python: "3.8"
