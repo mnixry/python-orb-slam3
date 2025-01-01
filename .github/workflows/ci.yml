@@ -45,7 +45,7 @@ jobs:
 
       - uses: mozilla-actions/sccache-action@main
 
-      - uses: ilammy/msvc-dev-cmd@master
+      - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
@@ -124,7 +124,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: ilammy/msvc-dev-cmd@master
+      - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
 
