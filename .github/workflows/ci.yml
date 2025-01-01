@@ -105,6 +105,8 @@ jobs:
             python: "3.8"
           - os: macos-14
             python: "3.9"
+          - os: windows-latest
+            python: "3.13"
 
     defaults:
       run:
@@ -157,7 +159,6 @@ jobs:
         env:
           SYSTEM_VERSION_COMPAT: 0
         run: |
-          rm -vf /usr/bin/link
           pip install dist/*.whl
           python -vc "from orb_slam3 import ORBExtractor"
 
@@ -208,7 +209,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          rm -vf /usr/bin/link
           poetry install --no-root --only=test
           poetry run pip install dist/*.whl
 
