@@ -3,36 +3,32 @@ name = "python-orb-slam3"
 authors = [{ name = "Mix", email = "32300164+mnixry@users.noreply.github.com" }]
 license = { text = "GPL-3.0" }
 requires-python = "<4.0,>=3.8"
-dependencies = [
-    "numpy>=1.24; python_version < '3.13'",
-    "numpy>=2.2; python_version >= '3.13'",
-    "opencv-python>=4.10.0.84",
-]
+dependencies = ["opencv-python>=4"]
 version = "0.1.1"
 description = "A Python wrapper of ORB-SLAM3 feature extraction algorithm."
 readme = "README.md"
 
 [dependency-groups]
-dev = [
-    "matplotlib",
-    "pybind11-stubgen>=2.5.1",
-    "black>=24.10.0",
-    "flake8>=7.1.1",
-]
-build = [
-    "pybind11>=2.13.6",
-    "cmake>=3.31.2",
-    "ninja>=1.11.1.3",
-    "setuptools>=75.6.0",
-]
-test = ["pytest>=8.3.4", "pytest-sugar>=1.0.0", "pytest-benchmark>=5.1.0"]
+dev = ["matplotlib", "pybind11-stubgen"]
+test = ["pytest", "pytest-sugar", "pytest-benchmark"]
 
 [tool.pdm.build]
 includes = ["python_orb_slam3"]
 source-includes = ["src/", "CMakeLists.txt", "build.py", "test/"]
-custom-hook = "build.py"
 run-setuptools = true
 
+[tool.pdm.scripts]
+lock-py38 = { cmd = ["pdm", "lock", "--python", "==3.8.*"] }
+lock-py39 = { cmd = ["pdm", "lock", "--python", "==3.9.*", "--append"] }
+lock-py310 = { cmd = ["pdm", "lock", "--python", "==3.10.*", "--append"] }
+lock-after = { cmd = ["pdm", "lock", "--python", ">=3.11", "--append"] }
+lock-all = { composite = [
+    "lock-py38",
+    "lock-py39",
+    "lock-py310",
+    "lock-after",
+] }
+
 [build-system]
-requires = ["pdm-backend", "numpy", "pybind11"]
+requires = ["pdm-backend", "numpy", "pybind11", "ninja", "setuptools", "cmake"]
 build-backend = "pdm.backend"
