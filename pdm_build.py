@@ -112,7 +112,7 @@ class CMakeBuild(build_ext):
         )
 
 
-def build(setup_kwargs: dict) -> None:
+def pdm_build_update_setup_kwargs(context, setup_kwargs: dict) -> None:
     setup_kwargs.update(
         cmdclass={"build_ext": CMakeBuild},
         ext_modules=[CMakeExtension("orb_slam3")],
