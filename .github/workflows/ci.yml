@@ -17,7 +17,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-13
-          - macos-14
+          - macos-latest
 
     defaults:
       run:
@@ -98,15 +98,14 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-13
-          - macos-14
+          - macos-latest
         python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
-          - os: macos-14
+          - os: macos-latest
             python: "3.8"
-          - os: macos-14
+          - os: macos-latest
             python: "3.9"
-          - os: windows-latest
-            python: "3.13"
+      fail-fast: false
 
     defaults:
       run:
@@ -172,13 +171,14 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-13
-          - macos-14
+          - macos-latest
         python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
-          - os: macos-14
+          - os: macos-latest
             python: "3.8"
-          - os: macos-14
+          - os: macos-latest
             python: "3.9"
+      fail-fast: false
 
     defaults:
       run:
