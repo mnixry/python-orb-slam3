@@ -126,6 +126,9 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: true
 
+      - name: Install dependencies
+        run: pdm install -G :all --no-self
+
       - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
         if: startsWith(matrix.os, 'windows')
@@ -143,9 +146,6 @@ jobs:
           echo "OpenCV_DIR=$(pwd)/opencv/lib/cmake/opencv4" >> $GITHUB_ENV
           echo "OpenCV_STATIC=ON" >> $GITHUB_ENV
 
-      - name: Install dependencies
-        run: pdm install -G :all
-
       - name: Build wheel
         run: pdm build -v
 
@@ -153,13 +153,6 @@ jobs:
         with:
           name: wheel-${{matrix.os}}-${{matrix.python}}
           path: ./dist/*.whl
-
-      - name: Test wheel import
-        env:
-          SYSTEM_VERSION_COMPAT: 0
-        run: |
-          pip install dist/*.whl
-          python -vc "from orb_slam3 import ORBExtractor"
 
   test:
     name: Test Wheel
@@ -202,7 +195,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pdm install -G :all
+          pdm install -G test --no-self
+          pdm add dist/*.whl --no-lock
 
       - name: Run tests
         run: |
@@ -232,7 +226,7 @@ jobs:
 
   release:
     name: Release
-    needs: [cleanup]
+    needs: [build, test]
     if: startsWith(github.ref, 'refs/tags/v') && github.head_ref == ''
     runs-on: ubuntu-latest
 
