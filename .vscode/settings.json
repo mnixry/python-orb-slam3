@@ -9,7 +9,7 @@
     "python.analysis.completeFunctionParens": true,
     "python.analysis.typeCheckingMode": "basic",
     "python.formatting.provider": "black",
-    "python.languageServer": "Pylance",
+    "python.languageServer": "None",
     "python.linting.flake8Enabled": true,
     "[python]": {
         "editor.codeActionsOnSave": {
