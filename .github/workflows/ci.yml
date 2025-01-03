@@ -9,15 +9,20 @@ on:
 
 jobs:
   build-opencv:
-    name: Build OpenCV
+    name: Build OpenCV (${{ matrix.os.artifact-name || matrix.os.runner }})
 
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-13
-          - macos-latest
+          - runner: ubuntu-latest
+            container: quay.io/pypa/manylinux_2_34_x86_64
+            artifact-name: linux
+          - runner: ubuntu-latest
+            container: quay.io/pypa/musllinux_1_2_x86_64
+            artifact-name: linux-musl
+          - runner: windows-latest
+          - runner: macos-13
+          - runner: macos-latest
 
     defaults:
       run:
@@ -26,16 +31,16 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: true
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os.runner }}
+    container: ${{ matrix.os.container }}
 
     steps:
       - name: Get latest release
         id: latest-release
         run: |
-          curl -s https://api.github.com/repos/opencv/opencv/releases/latest \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            | jq -r '.tag_name' | tee latest-release.txt
+          curl -Ls -o /dev/null -w %{url_effective} \
+            https://github.com/opencv/opencv/releases/latest \
+            | sed 's#.*tag/\(.*\)$#\1#' > latest-release.txt
           echo "tag=$(cat latest-release.txt)" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@main
@@ -43,16 +48,23 @@ jobs:
           repository: opencv/opencv
           ref: ${{ steps.latest-release.outputs.tag }}
 
+      - uses: seanmiddleditch/gha-setup-ninja@master
+        id: setup-ninja
+        if: matrix.os.artifact-name != 'linux-musl'
+
+      - name: Manually install ninja
+        if: steps.setup-ninja.conclusion == 'skipped'
+        run: apk add samurai
+
       - uses: mozilla-actions/sccache-action@main
 
       - uses: ilammy/msvc-dev-cmd@v1
         id: msvc-env
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.os.runner, 'windows')
 
       - name: Setup MSVC environment
         if: steps.msvc-env.conclusion == 'success'
         run: |
-          echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
           echo "CC=cl" >> $GITHUB_ENV
           echo "CXX=cl" >> $GITHUB_ENV
 
@@ -62,6 +74,7 @@ jobs:
           cd build
 
           cmake .. \
+            -D CMAKE_GENERATOR=Ninja \
             -D CMAKE_INSTALL_PREFIX=../opencv \
             -D CMAKE_BUILD_TYPE=Release \
             -D CMAKE_C_COMPILER_LAUNCHER=sccache \
@@ -81,24 +94,29 @@ jobs:
             -D WITH_PNG=OFF \
             -D WITH_TIFF=OFF
 
-          cmake --build . --target install --parallel 4
+          cmake --build . --target install --parallel $(nproc)
 
       - uses: actions/upload-artifact@main
         with:
-          name: opencv-${{ matrix.os }}
+          name: opencv-${{ matrix.os.artifact-name || matrix.os.runner }}
           path: ./opencv
 
   build:
-    name: Build Wheel
+    name: Build Wheel (${{ matrix.os.artifact-name || matrix.os.runner }}, Python ${{ matrix.python }})
     needs: [build-opencv]
 
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-13
-          - macos-latest
+          - runner: ubuntu-latest
+            container: quay.io/pypa/manylinux_2_34_x86_64
+            artifact-name: linux
+          # - runner: ubuntu-latest
+          #   container: quay.io/pypa/musllinux_1_2_x86_64
+          #   artifact-name: linux-musl
+          - runner: windows-latest
+          - runner: macos-13
+          - runner: macos-latest
         python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
           - os: macos-latest
@@ -111,30 +129,47 @@ jobs:
       run:
         shell: bash
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os.runner }}
+    container: ${{ matrix.os.container }}
 
     steps:
       - uses: actions/checkout@main
 
       - uses: actions/download-artifact@main
         with:
-          name: opencv-${{ matrix.os }}
+          name: opencv-${{ matrix.os.artifact-name || matrix.os.runner }}
           path: ./opencv
 
       - uses: pdm-project/setup-pdm@main
+        id: install-pdm
+        if: ${{ !matrix.os.container }}
         with:
           python-version: ${{ matrix.python }}
           cache: true
 
-      - name: Install dependencies
-        run: pdm install -G :all --no-self
+      - name: Manually install PDM
+        if: steps.install-pdm.conclusion == 'skipped'
+        run: |
+          pipx install pdm
+          export PYTHONPATH=$(python${{matrix.python}} -c 'import sys; print(sys.exec_prefix)')
 
-      - uses: ilammy/msvc-dev-cmd@v1
+          echo "$PYTHONPATH" >> $GITHUB_PATH
+          echo "$PYTHONPATH/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$PYTHONPATH/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "pythonLocation=$PYTHONPATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$PYTHONPATH/lib/pkgconfig" >> $GITHUB_ENV
+
+      - uses: seanmiddleditch/gha-setup-ninja@master
+        id: setup-ninja
+        if: matrix.os.artifact-name != 'linux-musl'
+
+      - name: Manually install ninja
+        if: steps.setup-ninja.conclusion == 'skipped'
+        run: apk add samurai
+
+      - name: Setup Windows environment
         id: msvc-env
-        if: startsWith(matrix.os, 'windows')
-
-      - name: Setup MSVC environment
-        if: steps.msvc-env.conclusion == 'success'
+        if: startsWith(matrix.os.runner, 'windows')
         run: |
           CV_DIR=$(find ./opencv/x64 | grep -i '\.cmake$' | head -n 1)
           echo "OpenCV_DIR=$(realpath $(dirname $CV_DIR))" >> $GITHUB_ENV
@@ -151,20 +186,25 @@ jobs:
 
       - uses: actions/upload-artifact@main
         with:
-          name: wheel-${{matrix.os}}-${{matrix.python}}
+          name: wheel-${{ matrix.os.artifact-name || matrix.os.runner }}-${{ matrix.python }}
           path: ./dist/*.whl
 
   test:
-    name: Test Wheel
+    name: Test Wheel (${{ matrix.os.artifact-name || matrix.os.runner }}, Python ${{ matrix.python }})
     needs: [build]
 
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-13
-          - macos-latest
+          - runner: ubuntu-latest
+            container: quay.io/pypa/manylinux_2_34_x86_64
+            artifact-name: linux
+          # - runner: ubuntu-latest
+          #   container: quay.io/pypa/musllinux_1_2_x86_64
+          #   artifact-name: linux-musl
+          - runner: windows-latest
+          - runner: macos-13
+          - runner: macos-latest
         python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
           - os: macos-latest
@@ -177,7 +217,8 @@ jobs:
       run:
         shell: bash
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os.runner }}
+    container: ${{ matrix.os.container }}
 
     steps:
       - uses: actions/checkout@main
@@ -185,18 +226,32 @@ jobs:
       - name: Download wheel
         uses: actions/download-artifact@main
         with:
-          name: wheel-${{matrix.os}}-${{matrix.python}}
+          name: wheel-${{ matrix.os.artifact-name || matrix.os.runner }}-${{ matrix.python }}
           path: ./dist
 
       - uses: pdm-project/setup-pdm@main
+        id: install-pdm
+        if: ${{ !matrix.os.container }}
         with:
           python-version: ${{ matrix.python }}
           cache: true
 
+      - name: Manually install PDM
+        if: steps.install-pdm.conclusion == 'skipped'
+        run: |
+          pipx install pdm
+          export PYTHONPATH=$(python${{matrix.python}} -c 'import sys; print(sys.exec_prefix)')
+
+          echo "$PYTHONPATH" >> $GITHUB_PATH
+          echo "$PYTHONPATH/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$PYTHONPATH/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "pythonLocation=$PYTHONPATH" >> $GITHUB_ENVd
+          echo "PKG_CONFIG_PATH=$PYTHONPATH/lib/pkgconfig" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: |
           pdm install -G test --no-self
-          pdm add dist/*.whl --no-lock
+          pdm add -v dist/*.whl --frozen-lockfile
 
       - name: Run tests
         run: |
@@ -246,7 +301,6 @@ jobs:
 
       - uses: pdm-project/setup-pdm@main
         with:
-          python-version: "3"
           cache: true
 
       - name: Publish to PyPI
